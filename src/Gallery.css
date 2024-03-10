@@ -1,9 +1,16 @@
+/* .image-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0px;
+} */
+
 .image-box {
   transition: opacity 0.2s ease-in-out;
 }
 
 .image-box:hover {
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 .image-container>.image-box {
@@ -11,5 +18,10 @@
 }
 
 .image-container>.image-box:active {
-  transform: scale(0.95);
+  transform: scale(0.90);
+}
+
+.image-container>.image-box:target {
+  transition: transform 0.4s ease-in-out;
+  transform: translateY(-10px);
 }

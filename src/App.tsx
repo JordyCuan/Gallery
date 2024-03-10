@@ -1,23 +1,26 @@
 import { useState, useRef } from 'react';
-import { Box, Button, Flex, Heading, Stack, HStack, Text, StackDivider, Image } from '@chakra-ui/react';
+import { Box, Button, Flex, Heading, Stack, HStack, Text, StackDivider, Image as ChakraImage, CircularProgress } from '@chakra-ui/react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import './Gallery.css';
 
 function Gallery() {
   const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleImageUpload = (event) => {
+  const handleImageUpload = async (event) => {
+    setLoading(true);
     const fileList = event.target.files;
     const newImages = [];
 
     for (let i = 0; i < fileList.length; i++) {
-      const image = URL.createObjectURL(fileList[i]);
+      const image = await compressImage(fileList[i]);
       newImages.push(image);
     }
 
     setImages([...newImages, ...images]);
+    setLoading(false);
   };
 
   const handleDragEnd = (dragIndex, dropIndex) => {
@@ -30,6 +33,28 @@ function Gallery() {
 
   const handleUploadButtonClick = () => {
     fileInputRef.current.click();
+  };
+
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const size = Math.min(img.width, img.height);
+          canvas.width = size;
+          canvas.height = size;
+          ctx.drawImage(img, (img.width - size) / 2, (img.height - size) / 2, size, size, 0, 0, size, size);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+          }, 'image/jpeg', 0.7);
+        };
+      };
+    });
   };
 
   return (
@@ -55,6 +80,12 @@ function Gallery() {
         </Box>
 
         <Box p={4} flex={1}>
+          {loading && (
+            <Flex justify="center" m={4}>
+              <CircularProgress isIndeterminate color="blue" />
+            </Flex>
+          )}
+
           <DndProvider backend={HTML5Backend}>
             <Flex
               direction="row"
@@ -73,7 +104,7 @@ function Gallery() {
             </Flex>
           </DndProvider>
 
-          {images.length === 0 && <Text>No images uploaded yet.</Text>}
+          {images.length === 0 && !loading && <Text>No images uploaded yet.</Text>}
         </Box>
       </HStack>
     </Box>
@@ -126,7 +157,7 @@ function ImageBox({ index, image, handleDragEnd }) {
       opacity={isDragging ? 0.5 : 1}
       className="image-box"
     >
-      <Image src={image} alt={`Image ${index}`} boxSize='150px' objectFit='cover' style={{ width: '100%' }} />
+      <ChakraImage src={URL.createObjectURL(image)} alt={`Image ${index}`} boxSize='100%' objectFit='cover' style={{ borderRadius: '10px' }} />
     </Box>
   );
 }
