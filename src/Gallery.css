@@ -1,0 +1,15 @@
+.image-box {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.image-box:hover {
+  opacity: 0.8;
+}
+
+.image-container>.image-box {
+  transition: transform 0.2s ease-in-out;
+}
+
+.image-container>.image-box:active {
+  transform: scale(0.95);
+}

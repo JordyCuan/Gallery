@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { Box, Button, Flex, Heading, Stack, HStack, Text, StackDivider, Image } from '@chakra-ui/react';
-import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import './Gallery.css';
 
 function Gallery() {
   const [images, setImages] = useState([]);
@@ -18,12 +20,10 @@ function Gallery() {
     setImages([...newImages, ...images]);
   };
 
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-
+  const handleDragEnd = (dragIndex, dropIndex) => {
     const reorderedImages = Array.from(images);
-    const [reorderedItem] = reorderedImages.splice(result.source.index, 1);
-    reorderedImages.splice(result.destination.index, 0, reorderedItem);
+    const [draggedImage] = reorderedImages.splice(dragIndex, 1);
+    reorderedImages.splice(dropIndex, 0, draggedImage);
 
     setImages(reorderedImages);
   };
@@ -55,42 +55,78 @@ function Gallery() {
         </Box>
 
         <Box p={4} flex={1}>
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="gallery">
-              {(provided) => (
-                <Flex
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  direction="row"
-                  flexWrap="wrap"
-                  justify="space-between"
-                >
-                  {images.map((image, index) => (
-                    <Draggable key={index} draggableId={`image-${index}`} index={index}>
-                      {(provided) => (
-                        <Box
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          boxSize="30%"
-                          mb={1}
-                        >
-                          <Image src={image} alt={`Image ${index}`} boxSize='150px' objectFit='cover' style={{ width: '100%' }} />
-                        </Box>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </Flex>
-              )}
-            </Droppable>
-          </DragDropContext>
+          <DndProvider backend={HTML5Backend}>
+            <Flex
+              direction="row"
+              flexWrap="wrap"
+              justify="space-between"
+              className="image-container"
+            >
+              {images.map((image, index) => (
+                <ImageBox
+                  key={index}
+                  index={index}
+                  image={image}
+                  handleDragEnd={handleDragEnd}
+                />
+              ))}
+            </Flex>
+          </DndProvider>
 
           {images.length === 0 && <Text>No images uploaded yet.</Text>}
         </Box>
-
-        {/* <Box p={4} flex={1}></Box> */}
       </HStack>
+    </Box>
+  );
+}
+
+function ImageBox({ index, image, handleDragEnd }) {
+  const ref = useRef(null);
+  const [{ isDragging }, drag] = useDrag({
+    type: 'IMAGE',
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: 'IMAGE',
+    hover(item, monitor) {
+      if (!ref.current) {
+        return;
+      }
+      const dragIndex = item.index;
+      const dropIndex = index;
+      if (dragIndex === dropIndex) {
+        return;
+      }
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
+      if (dragIndex < dropIndex && hoverClientY < hoverMiddleY) {
+        return;
+      }
+      if (dragIndex > dropIndex && hoverClientY > hoverMiddleY) {
+        return;
+      }
+      handleDragEnd(dragIndex, dropIndex);
+      item.index = dropIndex;
+    },
+  });
+
+  drag(drop(ref));
+
+  return (
+    <Box
+      ref={ref}
+      boxSize="30%"
+      mb={1}
+      opacity={isDragging ? 0.5 : 1}
+      className="image-box"
+    >
+      <Image src={image} alt={`Image ${index}`} boxSize='150px' objectFit='cover' style={{ width: '100%' }} />
     </Box>
   );
 }
